@@ -148,6 +148,7 @@ namespace SocketIO
             set
             {
                 if (m_wsConnected == value) return;
+                m_wsConnected = value;
                 if (value)
                 {
                     RaiseEvent("connect");
@@ -164,9 +165,9 @@ namespace SocketIO
 
         void OnMessage(object sender, MessageEventArgs e)
         {
-            Info("[SocketIO]OnMessage#Raw message: " + e.Data);
-
             var packet = decoder.Decode(e);
+
+            Info("[SocketIO]OnMessage#Raw message: " + e.Data + " => " + packet.enginePacketType);
             switch (packet.enginePacketType)
             {
                 case EnginePacketType.OPEN:
@@ -175,7 +176,7 @@ namespace SocketIO
 
                         wsConnected = ws.IsConnected;
                         //sid = packet.json["sid"].str;
-                        RaiseEvent("open");
+                        //RaiseEvent("open");
                     }
                     break;
 
@@ -201,6 +202,7 @@ namespace SocketIO
                     {
                         if (packet.socketPacketType == SocketPacketType.ACK)
                         {
+                            Debug("  [SocketIO]ACK");
                             for (int i = 0; i < ackList.Count; i++)
                             {
                                 if (ackList[i].packetId != packet.id) { continue; }
@@ -209,6 +211,7 @@ namespace SocketIO
                         }
                         else if (packet.socketPacketType == SocketPacketType.EVENT)
                         {
+                            Debug("  [SocketIO]Event");
                             try
                             {
                                 var ioe = parser.Parse(packet.json);
@@ -287,7 +290,10 @@ namespace SocketIO
 
         void RaiseEvent(SocketIOEvent ev)
         {
-            if (!handlers.ContainsKey(ev.name)) { return; }
+            if (!handlers.ContainsKey(ev.name)) {
+                Debug("[SocketIO]RaiseEvent. handle not found: " + ev.name);
+                return;
+            }
             foreach (Action<SocketIOEvent> handler in this.handlers[ev.name])
             {
                 try
@@ -410,13 +416,18 @@ namespace SocketIO
 
             base.Start(() =>
             {
-                if (ws.IsConnected)
-                {
-                    Thread.Sleep(reconnectDelay);
+                try {
+                    if (ws.IsConnected)
+                    {
+                        Thread.Sleep(reconnectDelay);
+                    }
+                    else
+                    {
+                        ws.Connect();
+                    }
                 }
-                else
+                catch(ThreadAbortException)
                 {
-                    ws.Connect();
                 }
             }
             , ()=>

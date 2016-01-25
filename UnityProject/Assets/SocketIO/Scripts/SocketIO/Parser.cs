@@ -44,10 +44,6 @@ namespace SocketIO
 				return new SocketIOEvent(json[0].str);
 			} 
 
-			if (json[1].type != JSONObject.Type.OBJECT) {
-				throw new SocketIOException("Invalid argument type. " + json[1].type + " received while expecting " + JSONObject.Type.OBJECT);
-			}
-
 			return new SocketIOEvent(json[0].str, json[1]);
 		}
 	}
